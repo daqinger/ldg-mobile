@@ -1,0 +1,50 @@
+{
+	"bsonType": "object",
+	"required": ["bannerfile"],
+	"permission": {
+		"read": true,
+		"create": true,
+		"update": true,
+		"delete": true
+	},
+	"properties": {
+		"_id": {
+			"description": "ID，系统自动生成"
+		},
+		"bannerfile": {
+			"recordDate": "timestamp",
+			"title": "记录日期",
+			"description": "记录的日期"
+		},
+		"recordPersonName": {
+			"bsonType": "string",
+			"description": "记录人姓名",
+			"title": "记录人姓名"
+		},
+		"haveException": {
+			"bsonType": "string",
+			"description": "设备是否有异样",
+			"title": "设备是否有异样"
+		},
+		"exceptionNumber": {
+			"bsonType": "int",
+			"description": "异常总数",
+			"title": "异常总数"
+		},
+		"exceptionRemarks": {
+			"bsonType": "string",
+			"description": "异常描述",
+			"title": "异常描述"
+		},
+		"exceptionSolution": {
+			"bsonType": "string",
+			"defaultValue": "处理方案",
+			"title": "处理方案"
+		},
+		"remarks": {
+			"bsonType": "string",
+			"description": "备注",
+			"title": "备注"
+		}
+	}
+}

@@ -1,0 +1,262 @@
+<template>
+	<view class="pages">
+		<!-- #ifndef H5 -->
+		<statusBar></statusBar>
+		<!-- #endif -->	
+
+		<!-- 搜索功能 -->
+		<view class="uni-search-box">
+			<uni-search-bar v-model="keyword" ref="searchBar" radius="100" cancelButton="none" disabled
+				placeholder="搜索" />
+			<view class="cover-search-bar" @click="searchClick"></view>
+		</view>
+<!-- <image src="https://gulimall-kirito.oss-cn-shanghai.aliyuncs.com/temp.jpg?versionId=CAEQLhiBgMCN19i._RciIDk5ODk3MDhjNTE4NTQzOTU5YjJlOTYyYmFkNjZiNTcw"> -->
+<!-- 		<unicloud-db ref='udb' v-slot:default="{data,pagination,hasMore, loading, error, options}" @error="onqueryerror"
+			:where="where" collection="opendb-news-articles,uni-id-users" :page-size="10"
+			field="avatar,title,last_modify_date,user_id.username"> -->
+			<!-- 基于 uni-list 的页面布局 -->
+			<uni-list class="uni-list" :border="false" :style="{height:listHight}">
+				
+				<!-- 作用于app端nvue页面的下拉加载 -->
+				<!-- #ifdef APP-NVUE -->
+				<refreshBox @refresh="refresh(true)"  @pullingdown="onpullingdown" :loading="loading"></refreshBox>
+				<!-- #endif -->
+
+				<!-- 列表渲染 -->
+				<uni-list-item :to="'/pages/list/detail?id='+item.id+'&title='+item.title" v-for="(item,index) in listData"
+					:key="index">
+					<!-- 通过header插槽定义列表左侧图片 -->
+					<template v-slot:header>
+						<image class="avatar" :src="item.picurl" mode="aspectFill"></image>
+					</template>
+					<!-- 通过body插槽定义布局 -->
+					<template v-slot:body>
+						<view class="main">
+							<text class="title">{{item.title}}</text>
+							<view class="info">
+								<text class="author">{{item.author}}</text>
+								<uni-dateformat class="last_modify_date" :date="item.postTime"
+									format="yyyy-MM-dd" :threshold="[60000, 2592000000]" />
+							</view>
+						</view>
+					</template>
+				</uni-list-item>
+				<!-- 加载状态：上拉加载更多，加载中，没有更多数据了，加载错误 -->
+		
+				<uni-list-item>
+					<template v-slot:body>
+				<uni-load-more iconType="auto" :status="status" />
+				<!-- #ifdef APP-NVUE -->
+					<view class="load-more" @click="loadMore()">{{loadText}}</view>
+				<!-- #endif -->	
+				</template>
+				</uni-list-item>
+
+			</uni-list>
+		<!-- </unicloud-db> -->
+	</view>
+</template>
+
+<script>
+	var cdbRef, currentWebview;
+	import statusBar from "@/uni_modules/uni-nav-bar/components/uni-nav-bar/uni-status-bar";
+
+
+	export default {
+		components: {
+			statusBar
+		},
+		data() {
+			return {
+				keyword: "",
+				showRefresh: false,
+				listHight: 0,
+				listData:[],
+				page:1,
+				status:"more",
+				loading:false,
+				loadText:"戳我加载更多"
+			}
+		},
+		async onReady() {
+			// #ifdef APP-NVUE
+			/* 可用窗口高度 - 搜索框高 - 状态栏高 */
+			this.listHight = uni.getSystemInfoSync().windowHeight - uni.getSystemInfoSync().statusBarHeight - 50 + 'px';
+			// #endif
+			// #ifndef APP-NVUE
+			this.listHight = 'auto'
+			// #endif
+		},
+		async onShow() {
+			console.log("执行onshow")
+			this.keyword = getApp().globalData.searchText;
+			getApp().globalData.searchText = "";
+			this.page = 1;
+			this.refresh(true);
+			
+		},
+		onLoad() {
+			console.log("执行onLoad")
+			this.refresh(true);
+		},
+		methods: {
+			searchClick(e) { //点击搜索框
+				uni.hideKeyboard();
+				uni.navigateTo({
+					url: '/pages/list/search/search',
+					animationType: 'fade-in'
+				});
+			},
+			retry() {
+				console.log("retry方法被调用")
+				this.refresh(true)
+			},
+			refresh(flag) {
+				console.log("refresh方法被调用")
+				this.status = "loading";
+				this.loadText = "努力加载中~";
+				this.loading=true;
+				uni.request({
+					url: "http://118.118.118.21:8001/api/webinfo/infolist/list",
+					method: 'GET',
+					data: {
+						page:this.page,
+						limit:"10",
+						key:this.keyword
+					},
+					success: res => {
+						uni.stopPullDownRefresh()
+						// #ifdef APP-NVUE
+						this.showRefresh = false
+						this.loading=false;
+						// #endif
+						console.log(res.data.page);
+						if(res.data.page.length<10){
+							this.status = "noMore";
+							this.loadText = "我是有底线的!";
+						}else{
+							this.status = "more";
+							this.loadText = "戳我加载更多~";
+						}
+						// a.push.apply(a,b);
+						
+						if(flag){
+							// 搜索 替换
+							console.log(flag,"搜索 替换")
+							this.listData = res.data.page;
+						}else{
+							console.log(flag,"后缀")
+							// 后缀
+							this.listData.push.apply(this.listData,res.data.page)
+						}
+						// this.listData = res.data.page;
+						
+					},
+					fail: (err) => {
+						console.log("网络异常...")
+						this.status = "noMore";
+						this.loading=false;
+						uni.stopPullDownRefresh()
+						// #ifdef APP-NVUE
+						this.showRefresh = false
+						this.loading=false;
+						// #endif
+					},
+				});
+			},
+			loadMore() {
+				this.page = this.page+1;
+				this.refresh(false);
+				
+			},
+			onqueryerror(e) {
+				console.error(e);
+			},
+			onpullingdown(e) {
+				console.log("onpullingdown");
+				this.showRefresh = true
+				this.page = 0;
+				this.keyword = "";
+				this.refresh(true)
+				if(e.pullingDistance>100){
+					this.refresh(true)
+				}
+			}
+		},
+		onPullDownRefresh() {
+			console.log("onPullDownRefresh，方法被调用")
+			this.keyword = ""
+			this.refresh(true)
+		},
+		onReachBottom() {
+			console.log("onReachBottom")
+			this.loadMore()
+		}
+
+	}
+</script>
+
+<style lang="scss" scoped>
+	.load-more{
+		margin-left: 115px;
+	}
+	/* #ifndef APP-NVUE */
+	view {
+		display: flex;
+		box-sizing: border-box;
+		flex-direction: column;
+	}
+	/* #endif */
+	.pages {
+		background-color: #FFFFFF;
+	}
+
+	.avatar {
+		width: 200rpx;
+		height: 200rpx;
+		margin-right: 10rpx;
+	}
+
+	.main {
+		justify-content: space-between;
+	}
+
+	.title {
+		width: 480rpx;
+		font-size: 32rpx;
+	}
+
+	.info {
+		flex-direction: row;
+		justify-content: space-between;
+	}
+
+	.author,
+	.last_modify_date {
+		font-size: 28rpx;
+		color: #999999;
+	}
+
+	.uni-search-box {
+		background-color: #FFFFFF;
+		position: sticky;
+		height: 50px;
+		top: 0;
+		left: 0;
+		/* #ifndef APP-PLUS */
+		z-index: 9;
+		/* #endif */
+		/* #ifdef MP-WEIXIN */
+		width: 580rpx;
+		/* #endif */
+	}
+	.cover-search-bar {
+		height: 50px;
+		position: relative;
+		top: -50px;
+		margin-bottom: -50px;
+		/* #ifndef APP-NVUE */
+		z-index: 999;
+		/* #endif */
+	}
+</style>
